@@ -1,0 +1,85 @@
+{
+  "name": "PatientTriage.ai - Risk Engine Prototype",
+  "version": "0.1.0-prototype",
+  "created": "2026-08-23T12:11:33.581182Z",
+  "status": "PROTOTYPE - NOT VALIDATED FOR REAL CLINICAL USE",
+  "production_model": "XGBoost",
+  "operating_threshold": 0.31,
+  "candidate_models": [ 
+    "logistic_regression",
+    "random_forest",
+    "gradient_boosting",
+    "xgboost",
+    "svm_rbf"
+  ],
+  "data_source": "100% synthetic data generated for this prototype. No real patient data was used.",
+  "intended_use": "Decision-support demonstration for the Accenture Innovation Challenge. Final triage authority remains with a clinician.",
+  "known_limitations": [
+    "Ground-truth labels are simulated and do not represent real clinical outcomes.",
+    "Reported metrics measure performance on synthetic labels only.",
+    "Safety-rule thresholds are illustrative and have not been clinically validated.",
+    "Symptom severity uses a keyword-based text feature rather than a validated clinical NLP system.",
+    "No real EHR, hospital, or live-monitor integration exists.",
+    "The prototype must not be used for real clinical triage."
+  ],
+  "model_selection": {
+    "selection_basis": "XGBoost provided the strongest overall discrimination and probability quality among the candidate models.",
+    "roc_auc": 0.96,
+    "brier_score": 0.0731
+  },
+  "test_set_metrics": [
+    {
+      "model": "logistic_regression",
+      "threshold": 0.5,
+      "high_risk_recall(sensitivity)": 0.842,
+      "precision": 0.848,
+      "f1": 0.845,
+      "roc_auc": 0.959,
+      "brier_score": 0.0757
+    },
+    {
+      "model": "random_forest",
+      "threshold": 0.5,
+      "high_risk_recall(sensitivity)": 0.78,
+      "precision": 0.899,
+      "f1": 0.835,
+      "roc_auc": 0.949,
+      "brier_score": 0.0979
+    },
+    {
+      "model": "gradient_boosting",
+      "threshold": 0.5,
+      "high_risk_recall(sensitivity)": 0.78,
+      "precision": 0.906,
+      "f1": 0.838,
+      "roc_auc": 0.957,
+      "brier_score": 0.075
+    },
+    {
+      "model": "xgboost",
+      "threshold": 0.5,
+      "high_risk_recall(sensitivity)": 0.787,
+      "precision": 0.896,
+      "f1": 0.838,
+      "roc_auc": 0.96,
+      "brier_score": 0.0731
+    },
+    {
+      "model": "svm_rbf",
+      "threshold": 0.5,
+      "high_risk_recall(sensitivity)": 0.815,
+      "precision": 0.854,
+      "f1": 0.834,
+      "roc_auc": 0.938,
+      "brier_score": 0.0859
+    }
+  ],
+  "engine_metrics": {
+    "ml_only_recall": 0.8541919805589308,
+    "ml_only_precision": 0.8419161676646707,
+    "ml_only_f1": 0.8480096501809409,
+    "hybrid_recall": 0.9343863912515188,
+    "hybrid_precision": 0.6282679738562091,
+    "hybrid_f1": 0.7513434294088911
+  }
+}
