@@ -27,6 +27,7 @@ PatientTriage.ai/
 │   ├── __init__.py               # new — see note 2
 │   ├── predictor.py
 │   ├── safety_rules.py
+│   ├── config.py  
 │   ├── uncertainty.py
 │   ├── feature_engineering.py    # new — see note 3
 │   └── artifacts/
