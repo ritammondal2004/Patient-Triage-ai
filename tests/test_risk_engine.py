@@ -128,8 +128,6 @@ def test_age_is_required():
         engineer(patient)
 
 
-# --- safety rules -----------------------------------------------------------
-
 def test_critical_desaturation_fires_critical():
     row = engineer(base_patient(spo2=85)).row(0)
     flags = apply_safety_rules(row)
@@ -171,7 +169,7 @@ def test_no_rules_means_no_floor():
     assert priority_floor([]) == 5
 
 
-# --- confidence -------------------------------------------------------------
+# --- confidence
 
 def test_probability_at_the_threshold_is_least_confident():
     cfg = load_config()
@@ -191,7 +189,7 @@ def test_penalties_only_ever_reduce_confidence():
     assert penalised.reasons
 
 
-# --- full engine ------------------------------------------------------------
+#  full engine 
 
 @requires_artifact
 def test_every_decision_carries_a_confidence_indicator():
