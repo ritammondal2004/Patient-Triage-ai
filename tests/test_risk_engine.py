@@ -30,7 +30,7 @@ requires_artifact = pytest.mark.skipif(
     reason="trained pipeline not present in risk_engine/artifacts/",
 )
 
-
+ 
 def base_patient(**overrides):
     patient = {
         "patient_id": "TEST-001",
