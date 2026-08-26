@@ -11,6 +11,9 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from typing import Any  
+from datetime import date, datetime, timezone
+from decimal import Decimal
+from uuid import UUID 
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -45,34 +48,52 @@ def _redact(payload: Any) -> Any:
     return payload
 
 
+def _iso_utc(value: datetime | date) -> str:
+    """One canonical string form for timestamps, so the hash survives a DB round-trip.
+    """
+    if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.isoformat(timespec="microseconds")
+    return value.isoformat()
+
+
+def _jsonify(value):
+    """Coerce a payload into something the JSON column can actually store."""
+    if value is None or isinstance(value, (str, bool, int, float)):
+        return value
+    if isinstance(value, (datetime, date)):
+        return _iso_utc(value)
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, dict): 
+        return {str(k): _jsonify(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_jsonify(v) for v in value]
+    return str(value)
+
+
 def _canonical(data: dict) -> str:
     """Stable serialisation — the hash must not depend on key order."""
     return json.dumps(data, sort_keys=True, separators=(",", ":"), default=str)
 
 
-def _compute_hash(
-    prev_hash: str | None,
-    event_type: str,
-    entity_type: str,
-    entity_id: str,
-    actor: str,
-    purpose: str,
-    payload: dict,
-    created_at: datetime,
-) -> str:
-    material = _canonical(
-        {
-            "prev": prev_hash or "",
-            "event_type": event_type,
-            "entity_type": entity_type,
-            "entity_id": entity_id,
-            "actor": actor,
-            "purpose": purpose,
-            "payload": payload,
-            "created_at": created_at.isoformat(),
-         }  
-    )
-    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+def _compute_hash(prev_hash, event_type, entity_type, entity_id, actor, purpose, payload, created_at) -> str:
+    """Hash over the normalised payload, never the raw objects — the stored row must
+    re-hash to the same value or verification is meaningless."""
+    material = _canonical({
+        "prev_hash": prev_hash or "",
+        "event_type": event_type,
+        "entity_type": entity_type,
+        "entity_id": str(entity_id),
+        "actor": actor,
+        "purpose": purpose,
+        "payload": _jsonify(payload or {}),
+        "created_at": _iso_utc(created_at) if created_at else "",
+    }) 
+    return hashlib.sha256(material.encode("utf-8")).hexdigest() 
 
 
 def _last_event(db: Session) -> AuditEvent | None:
@@ -90,16 +111,21 @@ def record_event(
     actor: str = "system",
     purpose: str = "clinical_triage",
     payload: dict | None = None,
-    commit: bool = False,
-) -> AuditEvent | None:
+    commit: bool = False) -> AuditEvent | None:
     """Append one event. Returns None on failure — auditing must never take down the
     request that triggered it, but the failure is surfaced on stdout."""
-    safe_payload = _redact(payload or {})
-    created_at = _now()
-
+    # safe_payload = _redact(payload or {})
+    # created_at = _now() 
+    safe_payload = _jsonify(_redact(payload or {}))
+    created_at = datetime.now(timezone.utc)
+    prev = _last_event(db)
+    prev_hash = prev.event_hash if prev else None
+    
     try:
-        previous = _last_event(db)
-        prev_hash = previous.event_hash if previous else None
+        event_hash = _compute_hash(
+            prev_hash, event_type, entity_type, entity_id,
+            actor, purpose, safe_payload, created_at,
+        ) 
 
         event = AuditEvent(
             event_type=event_type,
@@ -107,12 +133,9 @@ def record_event(
             entity_id=str(entity_id),
             actor=actor,
             purpose=purpose,
-            payload=safe_payload,
-            prev_hash=prev_hash,
-            event_hash=_compute_hash(
-                prev_hash, event_type, entity_type, str(entity_id),
-                actor, purpose, safe_payload, created_at,
-            ),
+            payload = safe_payload,
+            prev_hash= prev_hash,
+            event_hash = event_hash,
             created_at=created_at,
         )
         db.add(event)
@@ -142,28 +165,27 @@ def list_events(
         stmt = stmt.where(AuditEvent.entity_id == str(entity_id))
     return list(db.execute(stmt).scalars())
 
-
 def verify_chain(db: Session) -> tuple[int, bool, int | None]:
-    """Recompute every hash in order. Returns (count, intact, first_broken_id)."""
-    events = list(db.execute(select(AuditEvent).order_by(AuditEvent.id)).scalars())
-    prev_hash: str | None = None
+    """Recompute the whole chain. Returns (event_count, intact, first_broken_id)."""
+    try:
+        events = list(db.execute(select(AuditEvent).order_by(AuditEvent.id)).scalars())
+    except SQLAlchemyError as exc:
+        print(f"[warn] could not read audit chain: {exc}")
+        return 0, False, None
 
+    prev_hash = None
     for event in events:
         expected = _compute_hash(
-            prev_hash,
-            event.event_type,
-            event.entity_type,
-            event.entity_id,
-            event.actor,
-            event.purpose,
-            event.payload or {},
-            event.created_at,
+            prev_hash, event.event_type, event.entity_type, event.entity_id,
+            event.actor, event.purpose, event.payload or {}, event.created_at,
         )
         if event.prev_hash != prev_hash or event.event_hash != expected:
             return len(events), False, event.id
         prev_hash = event.event_hash
 
-    return len(events), True, None
+    return len(events), True, None 
+
+
 
           
 def event_count(db: Session) -> int:
