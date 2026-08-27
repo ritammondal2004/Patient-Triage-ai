@@ -8,7 +8,7 @@ the clinical data path entirely.
 Runs are deterministic in their seed, so identical parameters are served from a small
 in-process cache rather than recomputed: a demo audience clicking the same button twice
 should not wait twice.
-"""
+"""  
 
 from __future__ import annotations
 
@@ -34,9 +34,7 @@ _CACHE_LIMIT = 24
 
 _cache: dict[tuple, dict] = {}
 _cache_order: list[tuple] = []
-_cache_lock = threading.Lock()
-# One simulation at a time. Serialising is cheap because results are cached, and it stops
-# a demo audience hammering the button from pinning every worker thread.
+_cache_lock = threading.Lock() 
 _compute_lock = threading.Lock()
 
 
@@ -177,7 +175,7 @@ def as_output(result: dict, run: SimulationRun | None = None) -> dict[str, Any]:
         "params": params,
         "metrics": metrics,
         "created_at": run.created_at if run is not None else None,
-    }
+    }  
 
 
 def persist(db: Session, result: dict) -> SimulationRun | None:
@@ -237,8 +235,8 @@ def history(db: Session, scenario: str | None = None, limit: int = 20) -> list[S
         return []
 
 
-def get_run(db: Session, run_id: int) -> SimulationRun | None:
-    try:
+def get_run(db: Session, run_id: int)->SimulationRun | None:
+    try:                
         return db.get(SimulationRun, run_id)
     except SQLAlchemyError:
         return None

@@ -7,7 +7,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import routes_audit, routes_overrides, routes_patients, routes_queue, routes_triage
+from app.api import (
+    routes_audit,
+    routes_overrides,
+    routes_patients,
+    routes_queue,
+    routes_simulation,
+    routes_triage,
+)
 from app.core.config import get_settings
 from app.core.database import init_db
 from app.services.triage_service import TriageEngineError, engine_info
@@ -26,7 +33,7 @@ Runs on 100% synthetic data. Not validated for clinical use.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Idempotent: safe on every boot whether or not the schema already exists.
-    try:
+    try: 
         init_db()
         print("[ok] database ready")
     except Exception as exc:
@@ -61,6 +68,7 @@ for router in (
     routes_queue.router,
     routes_overrides.router,
     routes_audit.router,
+    routes_simulation.router,
 ):
     app.include_router(router)
 
