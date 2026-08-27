@@ -1,20 +1,24 @@
 """Application settings, loaded from environment / .env."""
 
 from functools import lru_cache
-
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
-     
+
+# Load environment variables from .env file BEFORE creating Settings
+load_dotenv()
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_name: str = "PatientTriage.ai"
-    environment: str = "development"
-    debug: bool = True
+    environment: str = "production"
+    debug: bool = False
 
-    # SQLite by default so the prototype runs with no local Postgres.
-    database_url: str = "sqlite:///./patienttriage.db"
-    sql_echo: bool = False
+    # DATABASE_URL is loaded from .env file - NEVER hardcode credentials here
+    
+    database_url: str
+    sql_echo: bool = False 
 
     # Single shared key is enough for a prototype; real deployment needs proper auth.
     api_key: str = "dev-local-key"
@@ -29,7 +33,7 @@ class Settings(BaseSettings):
     default_beds: int = 12
     default_daily_visits: int = 300
 
-    # DPDP Act 2023 (India) is the assumed jurisdiction.
+  
     jurisdiction: str = "India DPDP Act 2023"
     retention_days: int = 365
     consent_notice_version: str = "v1.0-prototype" 
