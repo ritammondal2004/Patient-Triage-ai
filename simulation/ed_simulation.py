@@ -5,8 +5,9 @@ Three process types: arrivals push patients into the queue, one process per doct
 from it, and a monitor re-checks everyone still waiting. The monitor is the point of the
 whole exercise, it is the thing a static triage system does not have.
 
-Beds are held longer than the doctor is, so at high load the department can be blocked by
-bed occupancy even when a doctor is technically free.
+Doctors and beds release on independent clocks. A bed stays occupied after the doctor has
+moved on, so the department can be blocked by bed turnaround while a physician is free --
+which is a different bottleneck from being short of physicians, and needs a different fix.
 """
 
 import random
@@ -15,10 +16,10 @@ from dataclasses import dataclass
 import simpy
 
 from risk_engine import reassessment as policy
+from risk_engine.config import DEFAULT_SAFETY_MODE
 from simulation.arrivals import (
     ArrivalPlan,
     build_pool,
-    hour_of,
     interarrival_minutes,
     is_night,
     is_volatile,
@@ -32,8 +33,7 @@ from simulation.resources import (
     sample_treatment_minutes,
 )
 
-# How a deteriorating patient's vitals move per monitor tick. This is a modelled
-# assumption, not something learned from data -- say so when presenting it.
+# How a deteriorating patient's vitals move per monitor tick.
 DRIFT = {
     "spo2": (-4.0, -1.0),
     "systolic_bp": (-25.0, -6.0),
@@ -46,9 +46,19 @@ FLOORS = {"spo2": 70.0, "systolic_bp": 60.0, "diastolic_bp": 35.0, "resp_rate": 
           "heart_rate": 40.0, "temperature_c": 35.0, "pain_score": 0.0}
 CEILINGS = {"spo2": 100.0, "systolic_bp": 220.0, "diastolic_bp": 130.0, "resp_rate": 60.0,
             "heart_rate": 200.0, "temperature_c": 42.0, "pain_score": 10.0}
-                      
+
 VITALS_KEYS = ("heart_rate", "resp_rate", "systolic_bp", "diastolic_bp",
                "temperature_c", "spo2", "pain_score")
+
+
+TARGET_TOLERANCE = 1.0
+
+
+class SimulationFailure(RuntimeError):
+    """The run could not produce meaningful output and must not be reported as a result.
+
+
+    """
 
 
 def _percentile(values: list[float], q: float) -> float:
@@ -71,6 +81,12 @@ class SimConfig:
     deterioration_rate: float = 0.10
     safety_mode: str | None = None
     seed: int = 42
+
+    def __post_init__(self) -> None:
+        # None means "whatever the engine defaults to", but it has to be resolved here:
+        # passing None down to the safety rules raises on every single patient.
+        mode = (self.safety_mode or "").strip().lower()
+        self.safety_mode = mode or DEFAULT_SAFETY_MODE
 
 
 class EDSimulation:
@@ -96,12 +112,21 @@ class EDSimulation:
         self.reassessments = 0
         self.deteriorations = 0
         self.scoring_errors = 0
+        self.first_scoring_error: str | None = None
         self.acuity_fallbacks = 0
         self.pool_exhausted = False
+        self.bed_block_minutes = 0.0     # physician time lost waiting for a free bed
 
     # -- scoring
-                                
-    def _prescore(self) -> None:     
+
+    def _note_error(self, exc: Exception) -> None:
+        """Keep the first cause. Counting failures without keeping one message turns a
+        precise engine error into an unexplained zero."""
+        self.scoring_errors += 1
+        if self.first_scoring_error is None:
+            self.first_scoring_error = f"{type(exc).__name__}: {exc}"
+
+    def _prescore(self) -> None:
         """One batched predict_proba for the whole cohort's intake vitals."""
         from risk_engine.predictor import score, score_batch
 
@@ -112,14 +137,24 @@ class EDSimulation:
         try:
             self.decisions = list(score_batch(records, safety_mode=self.config.safety_mode))
         except Exception as exc:
-            print(f"[warn] batch scoring unavailable ({exc}); falling back to per-patient")
+            print(f"[warn] batch scoring unavailable ({type(exc).__name__}: {exc}); "
+                  "falling back to per-patient")
+            if self.first_scoring_error is None:
+                self.first_scoring_error = f"{type(exc).__name__}: {exc}"
             self.decisions = []
             for record in records:
                 try:
                     self.decisions.append(score(record, safety_mode=self.config.safety_mode))
-                except Exception:
+                except Exception as inner:
                     self.decisions.append(None)
-                    self.scoring_errors += 1
+                    self._note_error(inner)
+
+        if not any(decision is not None for decision in self.decisions):
+            raise SimulationFailure(
+                f"the risk engine scored none of the {len(records)} pre-generated patients"
+                + (f" -- first error was {self.first_scoring_error}"
+                   if self.first_scoring_error else "")
+            )
 
         self._high, self._low = split_by_acuity(self.pool)
 
@@ -144,8 +179,8 @@ class EDSimulation:
         try:
             decision = score(record, safety_mode=self.config.safety_mode)
             return int(getattr(decision, "final_priority", entry.priority))
-        except Exception:
-            self.scoring_errors += 1
+        except Exception as exc:
+            self._note_error(exc)
             return None
 
     #  processes
@@ -155,7 +190,7 @@ class EDSimulation:
             yield self.env.timeout(interarrival_minutes(self.rng, self.plan.rate_at(self.env.now)))
             index = self._next_index(self.env.now)
             if index is None:
-                return  
+                return
 
             patient, decision = self.pool[index], self.decisions[index]
             if decision is None:
@@ -171,7 +206,7 @@ class EDSimulation:
                 vitals={key: record.get(key) for key in VITALS_KEYS},
                 arrival_minute=self.env.now,
                 priority=priority,
-                 intake_priority = priority,
+                intake_priority=priority,
                 ml_only_priority=int(getattr(decision, "ml_only_priority", priority)),
                 probability=float(getattr(decision, "risk_probability", 0.0)),
                 confidence=str(getattr(decision, "confidence_label", "Medium")),
@@ -193,17 +228,31 @@ class EDSimulation:
             treatment = sample_treatment_minutes(self.rng, entry.priority)
             bed_minutes = sample_bed_minutes(self.rng, entry.priority, treatment)
 
-            with self.beds.request() as bed:
-                yield bed
-                entry.treatment_start_minute = self.env.now
-                entry.treatment_priority = entry.priority
-                yield self.env.timeout(treatment)          # doctor is occupied
-                self.doctor_time.add(treatment)
-                self.treated.append(entry)
-                self.service_minutes.append(treatment)
-                # Bed stays occupied after the doctor moves on.
-                yield self.env.timeout(max(0.0, bed_minutes - treatment))
-            self.bed_time.add(bed_minutes)
+            # No bed, no treatment. Time spent here is the doctor blocked by the
+            # department rather than occupied by a patient, so it is counted separately.
+            blocked_from = self.env.now
+            bed = self.beds.request()
+            yield bed
+            self.bed_block_minutes += self.env.now - blocked_from
+
+            # Charge the bed when it is taken, clipped to the horizon, so utilisation
+            # stays a fraction even when the turnaround runs past the end of the run.
+            self.bed_time.add(min(bed_minutes, max(0.0, self.horizon - self.env.now)))
+
+            entry.treatment_start_minute = self.env.now
+            entry.treatment_priority = entry.priority
+            yield self.env.timeout(treatment)          # doctor is occupied
+            self.doctor_time.add(treatment)
+            self.treated.append(entry)
+            self.service_minutes.append(treatment)
+
+            # Turnaround continues without the doctor, who takes the next patient now.
+            self.env.process(self._hold_bed(bed, max(0.0, bed_minutes - treatment)))
+
+    def _hold_bed(self, request, minutes: float):
+        """Keep the bed occupied after the doctor has moved on, then release it."""
+        yield self.env.timeout(minutes)
+        self.beds.release(request)
 
     def _monitor(self):
         """Re-check everyone still waiting: vitals drift, then the reassessment policy."""
@@ -249,14 +298,14 @@ class EDSimulation:
         if self.rng.random() > min(chance, 0.5):
             return False
 
-        for field in self.rng.sample(list(DRIFT), k=self.rng.randint(2, 4)):
-            current = entry.vitals.get(field)
+        for field_name in self.rng.sample(list(DRIFT), k=self.rng.randint(2, 4)):
+            current = entry.vitals.get(field_name)
             if current is None:
                 continue
-            low, high = DRIFT[field]
+            low, high = DRIFT[field_name]
             moved = float(current) + self.rng.uniform(low, high)
-            moved = max(FLOORS.get(field, moved), min(CEILINGS.get(field, moved), moved))
-            entry.vitals[field] = round(moved, 1)
+            moved = max(FLOORS.get(field_name, moved), min(CEILINGS.get(field_name, moved), moved))
+            entry.vitals[field_name] = round(moved, 1)
 
         entry.deteriorated = True
         self.deteriorations += 1
@@ -277,7 +326,7 @@ class EDSimulation:
         group = [e for e in self.treated
                  if is_night(e.arrival_minute) == night and e.treatment_start_minute is not None]
         if not group:
-            return {"treated": 0}  
+            return {"treated": 0}
         waits = [e.treatment_start_minute - e.arrival_minute for e in group]
         high_risk = sum(1 for e in group if e.reference_high_risk)
         return {
@@ -301,7 +350,7 @@ class EDSimulation:
                 continue
             group_waits = [e.treatment_start_minute - e.arrival_minute for e in group]
             target = policy.max_wait_for(level)
-            within = sum(1 for w in group_waits if w <= target)
+            within = sum(1 for w in group_waits if w <= max(target, TARGET_TOLERANCE))
             by_priority[str(level)] = {
                 "treated": len(group),
                 "mean_wait": _mean(group_waits),
@@ -322,6 +371,8 @@ class EDSimulation:
         if mean_service:
             rho = round(effective_lambda / (60.0 / mean_service * self.capacity.doctors), 3)
 
+        doctor_minutes = max(self.horizon * self.capacity.doctors, 1.0)
+
         return {
             "scenario_params": {
                 **self.plan.describe(),
@@ -330,6 +381,7 @@ class EDSimulation:
                 "reassessment_enabled": self.config.reassessment_enabled,
                 "monitor_interval_minutes": self.config.monitor_interval,
                 "deterioration_rate": self.config.deterioration_rate,
+                "safety_mode": self.config.safety_mode,
                 "seed": self.config.seed,
             },
             "arrivals": self.arrived,
@@ -344,6 +396,10 @@ class EDSimulation:
             "max_wait_minutes": round(max(waits), 1) if waits else 0.0,
             "doctor_utilisation": self.doctor_time.utilisation(self.horizon),
             "bed_utilisation": self.bed_time.utilisation(self.horizon),
+            "bed_block_minutes_total": round(self.bed_block_minutes, 1),
+            "mean_bed_block_minutes": (round(self.bed_block_minutes / len(self.treated), 1)
+                                       if self.treated else 0.0),
+            "doctor_time_lost_to_bed_block": round(self.bed_block_minutes / doctor_minutes, 3),
             "max_queue_length": self.queue.max_length,
             "mean_queue_length": self.queue.mean_length(),
             "by_priority": by_priority,
@@ -358,6 +414,7 @@ class EDSimulation:
             "acuity_pool_fallbacks": self.acuity_fallbacks,
             "pool_exhausted": self.pool_exhausted,
             "scoring_errors": self.scoring_errors,
+            "first_scoring_error": self.first_scoring_error,
         }
 
 
@@ -375,8 +432,8 @@ def run_simulation(*, multiplier: float = 1.0, doctors: int = 4, beds: int = 12,
         use_night_acuity=use_night_acuity, seed=seed,
     )
     config = SimConfig(horizon_hours=horizon_hours,
-                       reassessment_enabled = reassessment_enabled,
-                       monitor_interval = monitor_interval,
-                       deterioration_rate = deterioration_rate,
-                       safety_mode = safety_mode, seed=seed)
+                       reassessment_enabled=reassessment_enabled,
+                       monitor_interval=monitor_interval,
+                       deterioration_rate=deterioration_rate,
+                       safety_mode=safety_mode, seed=seed)
     return EDSimulation(plan, EDCapacity(doctors, beds), config).run()
