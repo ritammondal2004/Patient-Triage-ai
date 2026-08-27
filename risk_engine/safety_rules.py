@@ -79,10 +79,10 @@ def apply_safety_rules(
         return not missing.intersection(fields)
 
     if available("spo2"):
-        if spo2 < spo2_lo - 6:
+        if spo2 <= spo2_lo - 6:
             fire("critical_low_spo2", "critical",
                  f"SpO2 {spo2:.0f}% is far below the {row['age_group']} floor of {spo2_lo:.0f}%")
-        elif spo2 < spo2_lo - params["low_spo2_offset"]:
+        elif spo2 <= spo2_lo - params["low_spo2_offset"]:
             fire("low_spo2", "urgent",
                  f"SpO2 {spo2:.0f}% is below the {row['age_group']} floor of {spo2_lo:.0f}%")
 
@@ -111,21 +111,21 @@ def apply_safety_rules(
         fire("severe_bleeding_red_flag", "critical", "Uncontrolled or deep bleeding described")
 
     if complaint == "difficulty breathing" and (
-        (available("spo2") and spo2 < spo2_lo - 3)
+        (available("spo2") and spo2 <= spo2_lo - 3)
         or (available("resp_rate") and rr > rr_hi * 1.3)
-        or "severe shortness of breath" in text
-    ):
+        or "severe shortness of breath" in text): 
+           
         fire("respiratory_distress", "critical",
              f"Breathing complaint with SpO2 {spo2:.0f}% and RR {rr:.0f}/min")
 
     if complaint == "chest pain" and any(cue in text for cue in CHEST_PAIN_CUES) and (
-        hr > hr_hi * 1.2 or sbp < sbp_lo or spo2 < spo2_lo-2 or pain >= 8):
+        hr > hr_hi * 1.2 or sbp < sbp_lo or spo2 <= spo2_lo-2 or pain >= 8):
         fire("chest_pain_red_flag", "urgent",
              "High-risk chest pain description with at least one supporting abnormality")
-       
+                  
     if complaint == "allergic reaction" and (
         "throat tightness" in text or "facial swelling" in text
-        or (available("spo2") and spo2 < spo2_lo - 3)
+        or (available("spo2") and spo2 <= spo2_lo - 3)
     ):
         fire("airway_allergic_reaction", "critical", "Possible airway involvement")
 

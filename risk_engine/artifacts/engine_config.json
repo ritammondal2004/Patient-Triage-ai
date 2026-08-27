@@ -1,7 +1,7 @@
 {
   "production_model": "xgboost",
   "model_version": "0.2.0-prototype",
-  "operating_threshold": 0.45,
+  "operating_threshold": 0.4,
   "feature_columns_numeric": [
     "age",
     "heart_rate",
@@ -107,7 +107,7 @@
   },
   "ml_priority_thresholds": {
     "esi1": 0.75,
-    "high_risk": 0.45,
+    "high_risk": 0.4,
     "esi3": 0.25,
     "esi4": 0.12
   },
@@ -117,7 +117,7 @@
     "3": 0.57,
     "4": 0.32
   },
-  "high_risk_prevalence": 0.1925,
+  "high_risk_prevalence": 0.1905,
   "threshold_selection": {
     "rule": "maximise F2 subject to recall >= 0.85",
     "beta": 2.0,

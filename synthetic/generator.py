@@ -24,14 +24,13 @@ from risk_engine.config import (
     ENGINE_CONFIG_PATH,
     GERIATRIC_MIN_AGE,
     PEDIATRIC_MAX_AGE,
+    VITAL_BOUNDS,
     age_group_for,
     load_config,
 )
 from risk_engine.feature_engineering import text_severity_score
 
-# Latent-severity cutoffs calibrated to a realistic ED acuity mix (high-risk ~20%,
-# ESI-1 ~2%). Mirrored in engine_config.json as "label_esi_cutoffs" — the test suite
-# cross-checks the two.
+
 ESI_CUTOFFS = {1: 1.38, 2: 1.03, 3: 0.57, 4: 0.32}
                           
 HIGH_RISK_ESI_MAX = 2  
@@ -129,26 +128,34 @@ def _sample_age(age_group: str, rng: np.random.Generator) -> int:
         return int(rng.integers(PEDIATRIC_MAX_AGE + 1, GERIATRIC_MIN_AGE))
     return int(rng.integers(GERIATRIC_MIN_AGE, 96))
 
-
 def _sample_vital(
     norm_range: tuple[float, float],
     rng: np.random.Generator,
-    abnormal_prob: float = 0.25,
+    abnormal_prob: float = 0.25, 
     severe_abnormal_prob: float = 0.08,
-) -> float:
-    """Draw a vital: mostly in-band, sometimes mildly off, occasionally far off."""
+    bounds: tuple[float, float] | None = None) ->float:
+    """Draw a vital: mostly in-band, sometimes mildly off, occasionally far off.
+    """
     lo, hi = norm_range
     span = hi - lo
     r = rng.random()
     if r < severe_abnormal_prob:
         if rng.random() < 0.5:
-            return lo - span * rng.uniform(1.2, 2.2)
-        return hi + span * rng.uniform(0.8, 1.8)
-    if r < abnormal_prob:
+            value = lo - span * rng.uniform(1.2, 2.2)
+        else:
+            value = hi + span * rng.uniform(0.8, 1.8)
+    elif r < abnormal_prob:
         if rng.random() < 0.5:
-            return lo - span * rng.uniform(0.1, 0.4)
-        return hi + span * rng.uniform(0.1, 0.4)
-    return rng.uniform(lo, hi)
+            value = lo - span * rng.uniform(0.1, 0.4)
+        else:
+            value = hi + span * rng.uniform(0.1, 0.4)
+    else:
+        value = rng.uniform(lo, hi)
+    if bounds is not None:
+        value = float(np.clip(value, bounds[0], bounds[1]))
+    return float(value) 
+
+
 
 
 def _band_excess(value: float, norm_range: tuple[float, float]) -> float:
@@ -240,13 +247,16 @@ def generate_patients(
         severity += min(prior_conditions * 0.025, 0.10)
         severity += 0.04 if age < 2 or age >= 80 else 0.0
 
-        hr = round(_sample_vital(norms["hr"], rng, 0.20 + 0.20 * severity, 0.04 + 0.08 * severity), 0)
-        rr = round(_sample_vital(norms["rr"], rng, 0.18 + 0.18 * severity, 0.03 + 0.07 * severity), 0)
-        sbp = round(_sample_vital(norms["sbp"], rng, 0.18 + 0.18 * severity, 0.03 + 0.07 * severity), 0)
-        dbp = round(sbp * rng.uniform(0.55, 0.70), 0)
-        temp = round(_sample_vital(norms["temp"], rng, 0.15 + 0.10 * severity, 0.02 + 0.05 * severity), 1)
+ 
+        hr = round(_sample_vital(norms["hr"], rng, 0.20 + 0.20 * severity, 0.04 + 0.08 * severity, bounds=VITAL_BOUNDS["heart_rate"]), 0)
+        rr = round(_sample_vital(norms["rr"], rng, 0.18 + 0.18 * severity, 0.03 + 0.07 * severity, bounds=VITAL_BOUNDS["resp_rate"]), 0)
+        sbp = round(_sample_vital(norms["sbp"], rng, 0.18 + 0.18 * severity, 0.03 + 0.07 * severity, bounds=VITAL_BOUNDS["systolic_bp"]), 0)
+        dbp = round(float(np.clip(sbp * rng.uniform(0.55, 0.70), *VITAL_BOUNDS["diastolic_bp"])), 0)
+        temp = round(_sample_vital(norms["temp"], rng, 0.15 + 0.10 * severity, 0.02 + 0.05 * severity, bounds=VITAL_BOUNDS["temperature_c"]), 1)
         spo2 = round(float(np.clip(
-            _sample_vital(norms["spo2"], rng, 0.15 + 0.25 * severity, 0.03 + 0.10 * severity), 70, 100)), 0)
+            _sample_vital(norms["spo2"], rng, 0.15 + 0.25 * severity, 0.03 + 0.10 * severity),
+            *VITAL_BOUNDS["spo2"])), 0)    
+    
 
         pain_score = int(np.clip(rng.normal(3.0 + 4.0 * base_weight, 2.0), 0, 10))
         symptom_text = f"Patient reports {complaint} described as {qualifier}."
@@ -401,6 +411,6 @@ def acuity_mix(patients: Iterable[SyntheticPatient]) -> dict[str, float]:
 def config_esi_cutoffs() -> dict[int, float] | None:
     """Cutoffs recorded in engine_config.json at training time, if present."""
     if not ENGINE_CONFIG_PATH.exists():
-        return None
+        return None 
     raw = json.loads(ENGINE_CONFIG_PATH.read_text()).get("label_esi_cutoffs")
     return {int(k): float(v) for k, v in raw.items()} if raw else None

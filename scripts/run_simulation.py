@@ -164,7 +164,9 @@ def main() -> int:
             payload = run_scenario(args.scenario, **overrides)
             print_detail(payload)
     except Exception as exc:
+        import traceback
         print(f"[error] simulation failed: {exc}")
+        traceback.print_exc()
         return 1
 
     if args.json_path:
