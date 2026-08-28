@@ -3,7 +3,7 @@
 The pure-logic tests always run. Anything that needs the trained artifact is
 skipped when it is absent, so the suite still passes on a fresh clone and in CI
 before artifacts are wired in.
-
+   
 Assertions on the artifact deliberately check direction and invariants rather
 than exact probabilities, because the model is due to be retrained on a
 recalibrated acuity mix.

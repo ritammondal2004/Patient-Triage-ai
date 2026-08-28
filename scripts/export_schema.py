@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.schema import CreateTable, CreateIndex
 
 from app.core.database import Base
-from app.models import orm  # noqa: F401  — registers all models
+from app.models import orm  # noqa: F401 
 
 OUTPUT = Path(__file__).resolve().parent.parent / "database" / "schema.sql"
 

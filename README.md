@@ -102,3 +102,46 @@ PatientTriage.ai/
     └── workflows/
         └── ci-cd.yml
 ```
+
+# 🚀 Production Deployment — AWS ECS
+
+## Project
+PatientTriage.ai API
+
+## AWS
+- Region: `eu-north-1`
+- ECS Cluster: `patienttriage-prod`
+- ECS Service: `patienttriage-api-service-v7gmlenl`
+- ECR Repository: `patienttriage-api`
+
+## Deploy after backend/Dockerfile changes
+
+```powershell
+cd "PatientTriageAI\"
+
+# Get ECR URI
+$ECR_URI = aws ecr describe-repositories `
+  --repository-names patienttriage-api `
+  --region eu-north-1 `
+  --query "repositories[0].repositoryUri" `
+  --output text
+
+# Login
+aws ecr get-login-password --region eu-north-1 |
+  docker login --username AWS --password-stdin $ECR_URI
+
+# Build
+docker build -t patienttriage-api .
+
+# Tag
+docker tag patienttriage-api:latest "$ECR_URI:latest"
+
+# Push
+docker push "$ECR_URI:latest"
+
+# Deploy new image
+aws ecs update-service `
+  --cluster patienttriage-prod `
+  --service patienttriage-api-service-v7gmlenl `
+  --force-new-deployment `
+  --region eu-north-1 

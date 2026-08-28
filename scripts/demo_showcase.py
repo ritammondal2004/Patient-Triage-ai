@@ -91,10 +91,10 @@ def main() -> int:
                   f"confidence={result.assessment.confidence_label}")
             if result.assessment.safety_rules_triggered:
                 print(f"  -> safety: {result.assessment.safety_rules_triggered}")
-            print()
-    finally:
-        db.close()
-
+            print()     
+    finally:          
+        db.close()         
+                        
     print(f"[ok] seeded {len(SHOWCASE_CASES)} showcase patients")
     return 0
 
