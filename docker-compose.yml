@@ -1,21 +1,15 @@
-version: '3.9'
-             
-services:      
-  # FastAPI application with Neon serverless PostgreSQL backend
-  # Database is hosted on Neon, not local or in container
+services:
+  # FastAPI application — Neon PostgreSQL is the database (cloud-hosted, not local)
   api:
     build: .
     container_name: patienttriage_api
-    environment:  
-      # DATABASE_URL is loaded from .env file by load_dotenv()
-      # No need to duplicate here - Docker will use .env file
-      ENVIRONMENT: production
-      DEBUG: "false"
-      API_KEY: your-secure-api-key
-      SAFETY_MODE: conservative 
+    env_file: .env
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
     ports:
-      - "8000:8000" 
+      - "8000:8000"
+    # For local dev: use --reload for auto-restart on code changes
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - .:/app
-    # Remove --reload for production; use it only for local development
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000

@@ -90,13 +90,12 @@ PatientTriage.ai/
 │   └── PatientTriage_ai_Risk_Engine1.ipynb
 │
 ├── docs/
-│   ├── architecture.md
-│   └── regulatory_dpdp.md            # jurisdiction assumption + what an override records
+│   └── architecture.md 
 │
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
-├── .env.example
+├── .env
 ├── .gitignore         
 ├── README.md
 └── .github/
