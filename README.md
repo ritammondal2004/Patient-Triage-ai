@@ -27,10 +27,32 @@
 ### Backend API (swagger)
 **[PatientTriage.ai API](http://patienttriage-alb-19208886.eu-north-1.elb.amazonaws.com/docs)**
 
+
+## System Architecture
+
 ### Backend API Architecture
-**Vercel → Cloudflare Worker → AWS ALB → ECS/Fargate → PostgreSQL (Neon)**
+
+**Vercel → Cloudflare Worker → AWS Application Load Balancer → AWS ECS/Fargate → PostgreSQL (Neon)**
+
+PatientTriage.ai follows a layered architecture that separates the user interface, secure API routing, application services, AI risk engine, data persistence, governance, and simulation components. This separation keeps the clinical decision-support logic independent from the web layer while allowing the same backend services to support both real-time ED operations and simulation-based analysis.
+
+![PatientTriage.ai System Architecture](diagrams/overall_system_arch.png)
+
+*Figure 1. High-level system architecture of PatientTriage.ai, showing the client layer, HTTPS edge routing, AWS application infrastructure, backend services, AI risk engine, data layer, security and governance, observability, and simulation pipeline.*
 
 ---
+
+### High-Level Data & Decision Flow
+
+The operational workflow follows a closed-loop decision process rather than treating AI triage as a one-time prediction. Patient information is assessed by the AI risk engine, checked against safety rules and uncertainty logic, placed into the live ED queue, and continuously monitored for reassessment. Clinicians remain in the decision loop through review and override capabilities, while decisions are recorded for auditability.
+
+![PatientTriage.ai Decision Workflow](diagrams/linear_arch.png)
+
+*Figure 2. End-to-end PatientTriage.ai decision workflow from patient arrival and intake through AI-assisted triage, safety checks, queue management, reassessment, clinician review, audit logging, and simulation analytics.*
+
+
+---
+
 
 # 🧰 Tech Stack
 
@@ -52,6 +74,7 @@
 | **Version Control** | ![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white) ![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white) |
 
 ---
+
 
 
 ## 🧠 Project Overview
@@ -594,7 +617,9 @@ The PatientTriage.ai risk engine was developed using a synthetic Emergency Depar
 
 The modelling pipeline evaluates multiple candidate classifiers before selecting a production prototype model.
 
-### Candidate Models
+---
+
+### Candidate Models 
 
 | Model | Role |
 |------|------|
@@ -604,13 +629,19 @@ The modelling pipeline evaluates multiple candidate classifiers before selecting
 | **XGBoost** | **Selected production prototype** |
 | RBF SVM | Non-linear comparison model |
 
+<img src="diagrams/calibration.png" alt="coding" width="760" align="center" style="margin-top: 10px; margin-left: 10px;" />
+
+### Model diagnostics: ROC and calibration curves were used to compare discrimination and probability quality across candidate models.
+
+----
+
 ### Evaluation Philosophy
 
 For ED triage, a missed high-risk patient is more concerning than unnecessarily escalating a lower-risk patient.
 
 Therefore, model selection prioritizes:
 
-**High-risk recall → F2 score → precision / calibration**
+**High-risk recall → F1 score → precision / calibration** 
 
 rather than optimizing accuracy alone.
 
@@ -620,9 +651,9 @@ At the selected operating threshold of **0.400**, the XGBoost prototype achieved
 |--------|---------|
 | High-risk Recall | **91.9%** |
 | Precision | **60.0%** |
-| F2 Score | **83.1%** |
+| F1 Score | **72.1%** |
 
-The threshold was selected by maximizing **F2 score subject to a minimum recall requirement of 85%**.
+The threshold was selected by maximizing **F1 score subject to a minimum recall requirement of 85%**.
 
 ---
 

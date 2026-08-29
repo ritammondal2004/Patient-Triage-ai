@@ -9,8 +9,8 @@ on:
       - main
 
 permissions:
-  id-token: write # Required for AWS OIDC authentication
-  contents: read  # Required for checkout action
+  id-token: write # for AWS OIDC authentication
+  contents: read  #  checkout action
 
 jobs:
   backend-test:
@@ -81,7 +81,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: eu-north-1
-
+              
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -106,5 +106,5 @@ jobs:
             --cluster patienttriage-prod \
             --service patienttriage-api-service-v7gmlenl \
             --force-new-deployment \
-            --region eu-north-1
+            --region eu-north-1 
 
