@@ -19,7 +19,7 @@ import type {
   SimulationResultOut,
 } from "../types/api";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://patienttriage-alb-19208886.eu-north-1.elb.amazonaws.com";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 const getSessionId = () => {
   let sessionId = localStorage.getItem("demo_session_id");
@@ -90,5 +90,7 @@ export const api = {
     return fetchApi<any>(`/simulation/daynight${qs ? `?${qs}` : ""}`);
   },
 };
+
+
 
 
