@@ -687,8 +687,6 @@ Final Triage Recommendation
 ```
 
 ----
-
-
   
 
 ## CI/CD Pipeline
@@ -700,3 +698,13 @@ The project utilizes GitHub Actions for continuous integration and deployment.
 - **Backend Deployment:** GitHub Actions securely authenticates to AWS using OIDC (OpenID Connect), bypassing the need for hard-coded AWS credentials. The latest Docker image is pushed to ECR and a new ECS/Fargate deployment is forced.
 - **Frontend Deployment:** Vercel automatically deploys the frontend upon a successful \main\ push via its native Git integration.
 
+---
+
+## 🔮 Future Roadmap
+
+- **EHR Integration:** Connect with hospital EHR/HIS systems for seamless patient and clinical-data exchange.
+- **Model Improvement:** Continuously evaluate and retrain the risk model using larger, diverse datasets with robust model monitoring.
+- **Real-Time Reassessment:** Extend deterioration detection with continuous vitals/monitor integration and automated escalation workflows.
+- **Multi-Hospital Support:** Introduce hospital/tenant isolation so each institution operates on its own patients, queues, configurations, and audit data.
+- **Advanced Surge Planning:** Expand the digital-twin simulation to optimize staffing, bed capacity, and resource allocation under different surge scenarios.
+- **Production Security:** Strengthen identity management, role-based access control, encryption, secrets management, and compliance controls for production deployment.
