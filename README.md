@@ -24,13 +24,35 @@
 ### Frontend
 **[PatientTriage.ai Command Center](https://safetriage.vercel.app/)**
 
-### API
+### Backend API (swagger)
 **[PatientTriage.ai API](http://patienttriage-alb-19208886.eu-north-1.elb.amazonaws.com/docs)**
 
 ### Backend API Architecture
 **Vercel → Cloudflare Worker → AWS ALB → ECS/Fargate → PostgreSQL (Neon)**
 
 ---
+
+# 🧰 Tech Stack
+
+| Category | Technologies |
+|----------|--------------|
+| **Programming Language** | ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) |
+| **Backend** | ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white) |
+| **Frontend** | ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white) |
+| **Frontend State / API** | ![TanStack Query](https://img.shields.io/badge/TanStack_Query-FF4154?style=for-the-badge&logo=reactquery&logoColor=white) |
+| **Machine Learning** | ![XGBoost](https://img.shields.io/badge/XGBoost-EC4E20?style=for-the-badge) |
+| **Database** | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white) ![Neon](https://img.shields.io/badge/Neon-000000?style=for-the-badge&logo=postgresql&logoColor=white) |
+| **ORM / Validation** | SQLAlchemy + Pydantic |
+| **Simulation** | ![SimPy](https://img.shields.io/badge/SimPy-3776AB?style=for-the-badge&logo=python&logoColor=white) |
+| **Containerization** | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) |
+| **Cloud Backend** | ![AWS](https://img.shields.io/badge/AWS-ECS%20%7C%20Fargate%20%7C%20ALB-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white) |
+| **Frontend Hosting** | ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white) |
+| **HTTPS / Edge Proxy** | ![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white) |
+| **Testing** | ![Pytest](https://img.shields.io/badge/Pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white) |
+| **Version Control** | ![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white) ![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white) |
+
+---
+
 
 ## 🧠 Project Overview
 
@@ -324,28 +346,28 @@ $ECR_URI = aws ecr describe-repositories `
 
 ```
 
-# Login
+### Login
 ```
 aws ecr get-login-password --region eu-north-1 |
   docker login --username AWS --password-stdin $ECR_URI
 ```
 
-# Build
+### Build
 ```
 docker build -t patienttriage-api .
 ```
 
-# Tag
+### Tag
 ```
 docker tag patienttriage-api:latest "$ECR_URI:latest"
 ```
 
-# Push
+### Push
 ```
 docker push "$ECR_URI:latest" 
 ```
 
-# Deploy new image
+### Deploy new image
 ```
 aws ecs update-service `
   --cluster patienttriage-prod `
@@ -353,6 +375,50 @@ aws ecs update-service `
   --force-new-deployment `
   --region eu-north-1 
 
+```
+
+---
+
+# 🔌 API Overview
+### Triage
+```
+GET  /triage/engine
+POST /triage/intake
+GET  /triage/visits/{visit_id}
+POST /triage/visits/{visit_id}/vitals
+POST /triage/visits/{visit_id}/rescore
+GET  /triage/visits/{visit_id}/reassessment
+```
+### Queue
+```
+GET  /queue
+GET  /queue/summary
+POST /queue/next
+POST /queue/visits/{visit_id}/close
+POST /queue/reassess
+```
+### Patients
+```
+GET /patients
+GET /patients/{patient_id}
+Overrides
+GET  /overrides
+POST /overrides/{assessment_id}
+GET  /overrides/{override_id} 
+```
+
+### Simulation
+```
+GET  /simulation/scenarios
+POST /simulation/run
+GET  /simulation/daynight
+POST /simulation/ablation
+```
+### Audit
+```
+GET /audit/events
+GET /audit/verify
+GET /audit/policy
 ```
 
 ----
@@ -434,87 +500,7 @@ Hospital operations teams can simulate higher demand and staffing conditions wit
 
 -----
 
-# 🧰 Tech Stack
 
-| Category               | Technologies              |
-| ---------------------- | ------------------------- |
-| **Frontend**           | React + TypeScript + Vite |
-| **UI**                 | Tailwind CSS              |
-| **Frontend State/API** | TanStack React Query      |
-| **Backend**            | FastAPI + Python          |
-| **Machine Learning**   | XGBoost                   |
-| **Database**           | PostgreSQL + Neon         |
-| **ORM / Validation**   | SQLAlchemy + Pydantic     |
-| **Simulation**         | SimPy                     |
-| **Containerization**   | Docker                    |
-| **Cloud Backend**      | AWS ECS / Fargate / ALB   |
-| **Frontend Hosting**   | Vercel                    |
-| **HTTPS Proxy**        | Cloudflare Workers        |
-| **Testing**            | Pytest                    |
-| **Version Control**    | Git + GitHub              |
-
-----
-
-
-flowchart TD
-
-    U[Clinician / ED Staff]
-
-    subgraph Frontend["Frontend"]
-        UI[React + TypeScript + Vite]
-    end
-
-    subgraph Edge["Edge / HTTPS"]
-        CF[Cloudflare Worker]
-    end
-
-    subgraph AWS["AWS"]
-        ALB[Application Load Balancer]
-        ECS[FastAPI on ECS / Fargate]
-
-        subgraph Services["Application Services"]
-            TRI[Triage Service]
-            QUE[Queue Service]
-            REA[Reassessment Service]
-            SIM[Simulation Service]
-            AUD[Audit Service]
-        end
-
-        subgraph Engine["Risk Engine"]
-            FE[Feature Engineering]
-            ML[XGBoost Predictor]
-            SAFE[Safety Rules]
-            UNC[Uncertainty / Confidence]
-        end
-    end
-
-    DB[(Neon PostgreSQL)]
-
-    U --> UI
-    UI -->|HTTPS REST API| CF
-    CF -->|Server-side proxy| ALB
-    ALB --> ECS
-
-    ECS --> TRI
-    ECS --> QUE
-    ECS --> REA
-    ECS --> SIM
-    ECS --> AUD
-
-    TRI --> FE
-    FE --> ML
-    ML --> SAFE
-    SAFE --> UNC
-
-    TRI --> DB
-    QUE --> DB
-    REA --> DB
-    AUD --> DB
-
-    SIM --> TRI
-    SIM --> DB
-
-    
 
 # 🖥️ Command Center Modules
 Dashboard
