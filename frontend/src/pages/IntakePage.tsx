@@ -9,7 +9,7 @@ const COMPLAINTS = [
   'chest_pain', 'abdominal_pain', 'shortness_of_breath', 'headache', 'trauma',
   'fever', 'seizure', 'cardiac_arrest', 'allergic_reaction', 'altered_consciousness',
   'back_pain', 'dizziness', 'nausea', 'laceration', 'fracture', 'stroke', 'bleeding', 'other'
-];
+].sort();
 
 export const IntakePage = () => {
   const { mutate, isPending, data, error, reset } = useSubmitIntake();
@@ -332,3 +332,4 @@ export const IntakePage = () => {
     </div>
   );
 };
+

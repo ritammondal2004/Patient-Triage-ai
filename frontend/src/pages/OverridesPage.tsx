@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useOverrides, useCreateOverride } from '@/hooks/use-api';
+import { useOverrides, useCreateOverride, useQueue } from '@/hooks/use-api';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ export function OverridesPage() {
   const { data: overrides, isLoading, refetch } = useOverrides(50);
   const createOverride = useCreateOverride();
 
+  const { data: queue } = useQueue();
   const [assessmentId, setAssessmentId] = useState('');
   const [clinicianId, setClinicianId] = useState('');
   const [clinicianRole, setClinicianRole] = useState('triage_nurse');
@@ -60,11 +61,14 @@ export function OverridesPage() {
           setAcknowledged(false);
           refetch();
         },
-        onError: (err: any) => {
-          if (err.response?.status === 409) {
-            setErrorMsg('This assessment has already been overridden.');
-          } else {
-            setErrorMsg('Failed to submit override. Check if the assessment ID is valid.');
+                  onError: (err: any) => {
+            if (err.status === 409 || err.message?.includes("409")) {
+              setErrorMsg('This assessment has already been overridden.');
+            } else if (err.status === 404 || err.message?.includes("404")) {
+              setErrorMsg('Assessment not found. Please provide a valid ID.');
+            } else {
+              setErrorMsg(err.message || 'Failed to submit override. Check if the assessment ID is valid.');
+            }
           }
         }
       }
@@ -83,11 +87,25 @@ export function OverridesPage() {
           <form onSubmit={handleSubmit} className="space-y-4 max-w-3xl">
             {errorMsg && <div className="p-3 bg-red-50 text-red-600 border border-red-200 rounded-md text-sm">{errorMsg}</div>}
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="assessmentId">Assessment ID *</Label>
-                <Input id="assessmentId" type="number" value={assessmentId} onChange={(e) => setAssessmentId(e.target.value)} required />
-              </div>
+                          <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="assessmentId">Assessment ID *</Label>
+                  <div className="flex gap-2">
+                    <Input id="assessmentId" type="number" value={assessmentId} onChange={(e) => setAssessmentId(e.target.value)} required placeholder="ID" className="w-24" />
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      onChange={(e) => setAssessmentId(e.target.value)}
+                      value=""
+                    >
+                      <option value="" disabled>Or select from Active Queue...</option>
+                      {queue?.map((q: any) => (
+                        <option key={q.assessment_id} value={q.assessment_id}>
+                          {q.patient_code} (P{q.priority}) - {q.chief_complaint}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               <div className="space-y-2">
                 <Label htmlFor="clinicianId">Clinician ID *</Label>
                 <Input id="clinicianId" placeholder="e.g. DR-SHARMA" value={clinicianId} onChange={(e) => setClinicianId(e.target.value)} required />
@@ -211,3 +229,5 @@ export function OverridesPage() {
     </div>
   );
 }
+
+

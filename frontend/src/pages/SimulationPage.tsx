@@ -34,7 +34,7 @@ export function SimulationPage() {
   const getDayNight = useDayNight();
 
   const [scenario, setScenario] = useState('');
-  const [hours, setHours] = useState(8);
+  const [hours, setHours] = useState(24);
   const [seed, setSeed] = useState(42);
 
   const handleRun = () => {
@@ -71,7 +71,7 @@ export function SimulationPage() {
                 onChange={(e) => setScenario(e.target.value)}
               >
                 <option value="" disabled>Select a scenario</option>
-                {scenarios?.map((s: any) => (
+                {((scenarios as any)?.scenarios || (Array.isArray(scenarios) ? scenarios : []))?.map((s: any) => (
                   <option key={s.name} value={s.name}>{s.label}</option>
                 ))}
               </select>
@@ -107,6 +107,11 @@ export function SimulationPage() {
         </CardFooter>
       </Card>
 
+            {runSimulation.isError && (
+        <div className="p-4 bg-red-50 text-red-700 rounded-md border border-red-200">
+          Simulation failed to run. Please check your network or try a different scenario.
+        </div>
+      )}
       {runSimulation.data && (
         <div className="space-y-6">
           <h2 className="text-2xl font-semibold mt-8">Results Dashboard</h2>
@@ -127,30 +132,30 @@ export function SimulationPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4"/> Mean Wait</div>
-                <div className="text-2xl font-bold mt-2">{runSimulation.data.metrics.mean_wait_minutes.toFixed(1)}m</div>
+                <div className="text-2xl font-bold mt-2">{(runSimulation.data.metrics.mean_wait_minutes || 0).toFixed(1)}m</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
                 <div className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4"/> P90 Wait</div>
-                <div className="text-2xl font-bold mt-2">{runSimulation.data.metrics.p90_wait_minutes.toFixed(1)}m</div>
+                <div className="text-2xl font-bold mt-2">{(runSimulation.data.metrics.p90_wait_minutes || 0).toFixed(1)}m</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
                 <div className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Activity className="h-4 w-4"/> Doc Util</div>
-                <div className="text-2xl font-bold mt-2">{(runSimulation.data.metrics.doctor_utilisation * 100).toFixed(1)}%</div>
+                <div className="text-2xl font-bold mt-2">{((runSimulation.data.metrics.doctor_utilisation || 0) * 100).toFixed(1)}%</div>
                 <div className="w-full bg-secondary h-2 mt-2 rounded-full overflow-hidden">
-                  <div className="bg-[#0D9488] h-full" style={{width: `${runSimulation.data.metrics.doctor_utilisation * 100}%`}}></div>
+                  <div className="bg-[#0D9488] h-full" style={{width: `${(runSimulation.data.metrics.doctor_utilisation || 0) * 100}%`}}></div>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
                 <div className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Bed className="h-4 w-4"/> Bed Util</div>
-                <div className="text-2xl font-bold mt-2">{(runSimulation.data.metrics.bed_utilisation * 100).toFixed(1)}%</div>
+                <div className="text-2xl font-bold mt-2">{((runSimulation.data.metrics.bed_utilisation || 0) * 100).toFixed(1)}%</div>
                 <div className="w-full bg-secondary h-2 mt-2 rounded-full overflow-hidden">
-                  <div className="bg-[#0D9488] h-full" style={{width: `${runSimulation.data.metrics.bed_utilisation * 100}%`}}></div>
+                  <div className="bg-[#0D9488] h-full" style={{width: `${(runSimulation.data.metrics.bed_utilisation || 0) * 100}%`}}></div>
                 </div>
               </CardContent>
             </Card>
@@ -164,13 +169,13 @@ export function SimulationPage() {
               <CardContent>
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={Object.entries(runSimulation.data.metrics.by_priority).map(([p, m]: any) => ({ priority: p, wait: m.mean_wait }))}>
+                    <BarChart data={Object.entries(runSimulation.data.metrics.by_priority || {}).map(([p, m]: any) => ({ priority: p, wait: m.mean_wait }))}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="priority" tickFormatter={(v) => `P${v}`} />
                       <YAxis label={{ value: 'Minutes', angle: -90, position: 'insideLeft' }} />
                       <Tooltip />
                       <Bar dataKey="wait" radius={[4, 4, 0, 0]}>
-                        {Object.keys(runSimulation.data.metrics.by_priority).map((p) => (
+                        {Object.keys(runSimulation.data.metrics.by_priority || {}).map((p) => (
                           <Cell key={`cell-${p}`} fill={PRIORITY_COLORS[p] || '#ccc'} />
                         ))}
                       </Bar>
@@ -187,10 +192,10 @@ export function SimulationPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-6xl font-black text-[#0D9488]">
-                  {runSimulation.data.metrics.caught_by_reassessment}
+                  {runSimulation.data.metrics.escalations}
                 </div>
                 <div className="mt-4 text-sm text-muted-foreground">
-                  Escalations triggered: {runSimulation.data.metrics.escalations}
+                  High risk treated: {runSimulation.data.metrics.high_risk_treated}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
                   Total reassessments: {runSimulation.data.metrics.reassessments}
@@ -216,14 +221,14 @@ export function SimulationPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Object.entries(runSimulation.data.metrics.by_priority).map(([p, m]: any) => (
+                  {Object.entries(runSimulation.data.metrics.by_priority || {}).map(([p, m]: any) => (
                     <TableRow key={p}>
                       <TableCell><Badge style={{backgroundColor: PRIORITY_COLORS[p]}}>P{p}</Badge></TableCell>
                       <TableCell>{m.treated}</TableCell>
-                      <TableCell>{m.mean_wait.toFixed(1)}m</TableCell>
-                      <TableCell>{m.p90_wait.toFixed(1)}m</TableCell>
+                      <TableCell>{(m.mean_wait || 0).toFixed(1)}m</TableCell>
+                      <TableCell>{(m.p90_wait || 0).toFixed(1)}m</TableCell>
                       <TableCell>{m.target_minutes}m</TableCell>
-                      <TableCell>{(m.within_target_pct * 100).toFixed(1)}%</TableCell>
+                      <TableCell>{(m.within_target_pct || 0).toFixed(1)}%</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -293,3 +298,6 @@ export function SimulationPage() {
     </div>
   );
 }
+
+
+

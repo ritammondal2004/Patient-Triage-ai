@@ -21,11 +21,21 @@ import type {
 
 const API_URL = import.meta.env.VITE_API_URL || "http://patienttriage-alb-19208886.eu-north-1.elb.amazonaws.com";
 
+const getSessionId = () => {
+  let sessionId = localStorage.getItem("demo_session_id");
+  if (!sessionId) {
+    sessionId = "demo-" + Math.random().toString(36).substring(2, 10);
+    localStorage.setItem("demo_session_id", sessionId);
+  }
+  return sessionId;
+};
+
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      "X-Demo-Session-ID": getSessionId(),
       ...(options?.headers || {}),
     },
   });
@@ -80,3 +90,5 @@ export const api = {
     return fetchApi<any>(`/simulation/daynight${qs ? `?${qs}` : ""}`);
   },
 };
+
+

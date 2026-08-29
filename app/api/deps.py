@@ -26,3 +26,21 @@ def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
 
             
 ApiKey = Annotated[None, Depends(require_api_key)]  
+from app.models.orm import Hospital
+
+def get_demo_hospital(
+    db: DbSession,
+    x_demo_session_id: str | None = Header(default=None)
+) -> Hospital:
+    if not x_demo_session_id:
+        x_demo_session_id = "default"
+        
+    hospital = db.query(Hospital).filter(Hospital.name == x_demo_session_id).first()
+    if not hospital:
+        hospital = Hospital(name=x_demo_session_id)
+        db.add(hospital)
+        db.commit()
+        db.refresh(hospital)
+    return hospital
+
+DemoHospital = Annotated[Hospital, Depends(get_demo_hospital)]

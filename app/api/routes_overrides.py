@@ -7,8 +7,8 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import ApiKey, DbSession
-from app.models.orm import ClinicianOverride, TriageAssessment
+from app.api.deps import ApiKey, DbSession, DemoHospital
+from app.models.orm import ClinicianOverride, TriageAssessment, Visit
 from app.models.schemas import OverrideOut, OverrideRequest
 from app.services import audit_service
         
@@ -88,7 +88,8 @@ def create_override(assessment_id: int, payload: OverrideRequest, db: DbSession,
 
 
 @router.get("", response_model=list[OverrideOut])
-def list_overrides(db: DbSession, _: ApiKey = None, limit: int = Query(50, ge=1, le=500)):
+def list_overrides(db: DbSession, hospital: DemoHospital, _: ApiKey = None, limit: int = Query(50, ge=1, le=500)):
+    stmt = select(ClinicianOverride).join(TriageAssessment).join(Visit).where(Visit.hospital_id == hospital.id).order_by(ClinicianOverride.created_at.desc()).limit(limit)
     return list(db.execute(
         select(ClinicianOverride).order_by(ClinicianOverride.id.desc()).limit(limit)
     ).scalars())
@@ -100,3 +101,5 @@ def get_override(override_id: int, db: DbSession, _: ApiKey = None):
     if override is None:
         raise HTTPException(status_code=404, detail=f"override {override_id} not found")
     return override
+
+

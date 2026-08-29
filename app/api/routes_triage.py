@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException
 
-from app.api.deps import ApiKey, DbSession
+from app.api.deps import ApiKey, DbSession, DemoHospital
 from app.models.schemas import (
     AssessmentOut,
     ConfidenceOut,
@@ -35,7 +35,8 @@ def engine_info():
 
 
 @router.post("/intake", response_model=TriageResponse, status_code=201)
-def intake(payload: VisitIntakeRequest, db: DbSession, _: ApiKey = None):
+def intake(payload: VisitIntakeRequest, db: DbSession, hospital: DemoHospital, _: ApiKey = None):
+    payload.hospital_id = hospital.id
     try:
         result = triage_service.intake(db, payload)
     except triage_service.TriageEngineError as exc:
@@ -97,3 +98,4 @@ def reassessment_status(visit_id: int, db: DbSession, _: ApiKey = None):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     result.pop("assessment", None)
     return ReassessmentOut(**result, assessment=None)
+

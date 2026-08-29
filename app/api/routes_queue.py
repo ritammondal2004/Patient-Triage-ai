@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.api.deps import ApiKey, DbSession
+from app.api.deps import ApiKey, DbSession, DemoHospital
 from app.models.schemas import QueueEntryOut
 from app.services import queue_service, reassessment_service
 
@@ -12,18 +12,18 @@ router = APIRouter(prefix="/queue", tags=["queue"])
 
 
 @router.get("", response_model=list[QueueEntryOut])
-def get_queue(db: DbSession, _: ApiKey = None, hospital_id: int | None = Query(None)):
-    return [QueueEntryOut(**entry) for entry in queue_service.build_queue(db, hospital_id)]
+def get_queue(db: DbSession, hospital: DemoHospital, _: ApiKey = None):
+    return [QueueEntryOut(**entry) for entry in queue_service.build_queue(db, hospital.id)]
 
 
 @router.get("/summary")
-def get_summary(db: DbSession, _: ApiKey = None, hospital_id: int | None = Query(None)):
-    return queue_service.queue_summary(db, hospital_id)
+def get_summary(db: DbSession, hospital: DemoHospital, _: ApiKey = None):
+    return queue_service.queue_summary(db, hospital.id)
 
 
 @router.post("/next")
-def call_next(db: DbSession, _: ApiKey = None, hospital_id: int | None = Query(None)):
-    entry = queue_service.call_next(db, hospital_id)
+def call_next(db: DbSession, hospital: DemoHospital, _: ApiKey = None):
+    entry = queue_service.call_next(db, hospital.id)
     if entry is None:
         raise HTTPException(status_code=404, detail="queue is empty")
     return entry
@@ -38,7 +38,8 @@ def close_visit(visit_id: int, db: DbSession, _: ApiKey = None, status: str = "d
 
 
 @router.post("/reassess")
-def reassess_all(db: DbSession, _: ApiKey = None, hospital_id: int | None = Query(None),
+def reassess_all(db: DbSession, hospital: DemoHospital, _: ApiKey = None,
                  rescore: bool = True):
     """Sweep every waiting patient for wait breaches and worsening vitals."""
-    return reassessment_service.sweep(db, hospital_id, rescore=rescore)
+    return reassessment_service.sweep(db, hospital.id, rescore=rescore)
+

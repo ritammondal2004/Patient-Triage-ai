@@ -88,7 +88,7 @@ class OverrideRequest(BaseModel):
 
 class SimulationRequest(BaseModel):
     scenario: str = Field("normal", max_length=40)
-    hours: float = Field(8.0, gt=0, le=72)
+    hours: float = Field(24.0, gt=0, le=72)
     arrival_multiplier: float = Field(1.0, gt=0, le=10)
     doctors: int | None = Field(None, ge=1, le=50)
     beds: int | None = Field(None, ge=1, le=200)
