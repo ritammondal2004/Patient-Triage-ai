@@ -92,6 +92,7 @@ export function Layout() {
                 patientTriage v1.0.0-prototype
               </span>
             )}
+            <img src="/logo-text.png" alt="PatientTriage AI" className="h-10 w-auto ml-2 object-contain" />
           </div>
         </header>
 
