@@ -3,7 +3,7 @@
 
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, Query, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
@@ -30,17 +30,18 @@ from app.models.orm import Hospital
 
 def get_demo_hospital(
     db: DbSession,
-    x_demo_session_id: str | None = Header(default=None)
+    demo_session_id: str | None = Query(default=None)
 ) -> Hospital:
-    if not x_demo_session_id:
-        x_demo_session_id = "default"
+    if not demo_session_id:
+        demo_session_id = "default"
         
-    hospital = db.query(Hospital).filter(Hospital.name == x_demo_session_id).first()
+    hospital = db.query(Hospital).filter(Hospital.name == demo_session_id).first()
     if not hospital:
-        hospital = Hospital(name=x_demo_session_id)
+        hospital = Hospital(name=demo_session_id)
         db.add(hospital)
         db.commit()
         db.refresh(hospital)
     return hospital
 
 DemoHospital = Annotated[Hospital, Depends(get_demo_hospital)]
+
