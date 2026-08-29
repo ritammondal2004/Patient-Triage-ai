@@ -566,6 +566,106 @@ The resulting assessment combines risk estimation with safety and uncertainty in
 The prototype model is trained and evaluated using synthetic data and is not clinically validated.
 
 
+----
+
+# 📊 Model Development & Evaluation 
+
+
+<img src="diagrams/cell7_op.png" alt="coding" width="800" align="center" style="margin-top: 10px; margin-left: 10px;" />
+
+
+### Candidate model comparison: Five ML approaches were evaluated with high-risk recall as the primary triage metric
+----
+
+<img src="diagrams/Threshold_selection.png" alt="coding" width="760" align="center" style="margin-top: 10px; margin-left: 10px;" />
+
+```
+Selection rule: maximise F2 subject to recall >= 0.85
+Selected operating threshold: 0.400
+recall 0.919
+precision 0.600
+F2 0.831
+```
+### Safety-oriented operating threshold: XGBoost uses a 0.400 operating threshold selected to maximize F2 while maintaining at least 85% recall.
+
+----
+
+The PatientTriage.ai risk engine was developed using a synthetic Emergency Department dataset designed to represent realistic intake conditions, including vital signs, age group, presenting complaint, symptom severity, history availability and arrival mode.
+
+The modelling pipeline evaluates multiple candidate classifiers before selecting a production prototype model.
+
+### Candidate Models
+
+| Model | Role |
+|------|------|
+| Logistic Regression | Interpretable baseline |
+| Random Forest | Non-linear tree ensemble |
+| Gradient Boosting | Boosted tree baseline |
+| **XGBoost** | **Selected production prototype** |
+| RBF SVM | Non-linear comparison model |
+
+### Evaluation Philosophy
+
+For ED triage, a missed high-risk patient is more concerning than unnecessarily escalating a lower-risk patient.
+
+Therefore, model selection prioritizes:
+
+**High-risk recall → F2 score → precision / calibration**
+
+rather than optimizing accuracy alone.
+
+At the selected operating threshold of **0.400**, the XGBoost prototype achieved:
+
+| Metric | XGBoost |
+|--------|---------|
+| High-risk Recall | **91.9%** |
+| Precision | **60.0%** |
+| F2 Score | **83.1%** |
+
+The threshold was selected by maximizing **F2 score subject to a minimum recall requirement of 85%**.
+
+---
+
+# 🛡️ Hybrid Safety Layer 
+
+
+<img src="diagrams/Hybrid_engine_comparison.png" alt="coding" width="760" align="center" style="margin-top: 10px; margin-left: 10px;" />
+
+Safety-layer impact: Adding deterministic safety rules increased synthetic high-risk recall from 91.9% to 95.3%, trading precision for more conservative escalation
+
+----
+
+The final system does not rely solely on the ML prediction.
+
+The XGBoost recommendation is passed through additional deterministic safety logic designed to identify predefined red-flag conditions.
+
+### Why?
+
+A purely statistical model may miss rare but safety-critical combinations of symptoms and vitals.
+
+The hybrid architecture therefore combines:
+
+```text
+XGBoost Risk Prediction
+          +
+Deterministic Safety Rules
+          +
+Model Uncertainty
+          ↓
+Final Triage Recommendation
+```
+
+----
 
 
   
+
+## CI/CD Pipeline
+
+The project utilizes GitHub Actions for continuous integration and deployment.
+
+- **Continuous Integration (CI):** Runs on all Pull Requests and pushes to \main\. It automatically validates the Python backend using pytest, checks the frontend TypeScript/Vite build, and attempts a dry-run Docker build to prevent broken code from being merged.
+- **Continuous Deployment (CD):** Merges to \main\ that pass CI automatically trigger the CD workflow.
+- **Backend Deployment:** GitHub Actions securely authenticates to AWS using OIDC (OpenID Connect), bypassing the need for hard-coded AWS credentials. The latest Docker image is pushed to ECR and a new ECS/Fargate deployment is forced.
+- **Frontend Deployment:** Vercel automatically deploys the frontend upon a successful \main\ push via its native Git integration.
+
