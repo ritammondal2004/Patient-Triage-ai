@@ -80,7 +80,7 @@ export const useCreateOverride = () => {
 export const useOverrides = (limit?: number) => useQuery({ queryKey: ["overrides", limit], queryFn: () => api.fetchOverrides(limit) });
 export const useOverride = (id: number) => useQuery({ queryKey: ["override", id], queryFn: () => api.fetchOverride(id) });
 
-export const useAuditEvents = (params?: Record<string, string | number>) => useQuery({
+export const useAuditEvents = (params?: Record<string, any>) => useQuery({
   queryKey: ["auditEvents", params],
   queryFn: () => api.fetchAuditEvents(params),
   staleTime: 300000,
@@ -99,7 +99,7 @@ export const useRunSimulation = () => {
   });
 };
 
-export const useSimulationRuns = (params?: Record<string, string | number>) => useQuery({ queryKey: ["simulationRuns", params], queryFn: () => api.fetchSimulationRuns(params) });
+export const useSimulationRuns = (params?: Record<string, any>) => useQuery({ queryKey: ["simulationRuns", params], queryFn: () => api.fetchSimulationRuns(params) });
 export const useSimulationRun = (id: number) => useQuery({ queryKey: ["simulationRun", id], queryFn: () => api.fetchSimulationRun(id) });
 
 export const useRunAblation = () => useMutation({ mutationFn: (params: any) => api.runAblation(params) });

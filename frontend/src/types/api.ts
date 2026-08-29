@@ -193,7 +193,7 @@ export interface AuditEventOut {
   entity_id: string;
   actor: string;
   purpose: string;
-  payload: Record<string, unknown>;
+  payload: Record<string, any>;
   prev_hash: string;
   event_hash: string;
   created_at: string;
@@ -211,7 +211,7 @@ export interface AuditPolicy {
   lawful_basis: string;
   purpose_limitation: string;
   consent_notice_version: string;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 export interface SimulationRequest {
@@ -237,8 +237,8 @@ export interface SimulationResultOut {
   id: number;
   scenario: string;
   arrival_multiplier: number;
-  params: Record<string, unknown>;
-  metrics: Record<string, unknown>;
+  params: Record<string, any>;
+  metrics: Record<string, any>;
   created_at: string;
 }
 

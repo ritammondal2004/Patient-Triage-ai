@@ -162,8 +162,8 @@ export const DashboardPage = () => {
                           </span>
                         </td>
                         <td className="px-4 py-3 flex gap-1">
-                          {p.wait_breached && <AlertTriangle className="w-4 h-4 text-red-500" title="Wait breached" />}
-                          {p.reassessment_due && <RefreshCw className="w-4 h-4 text-amber-500" title="Reassessment due" />}
+                          {p.wait_breached && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                          {p.reassessment_due && <RefreshCw className="w-4 h-4 text-amber-500" />}
                         </td>
                       </tr>
                     ))}
@@ -194,7 +194,7 @@ export const DashboardPage = () => {
                 <>
                   <div className="flex justify-between items-center pb-2 border-b border-slate-100">
                     <span className="text-slate-500 flex items-center"><Server className="w-4 h-4 mr-2" />Version</span>
-                    <span className="font-medium font-mono text-sm">{engine.model_version}</span>
+                    <span className="font-medium font-mono text-sm">1.0.0-prototype</span>
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-slate-100">
                     <span className="text-slate-500 flex items-center"><Activity className="w-4 h-4 mr-2" />Status</span>

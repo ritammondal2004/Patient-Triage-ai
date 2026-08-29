@@ -89,7 +89,7 @@ export function Layout() {
             </div>
             {engine && (
               <span className="text-xs text-gray-400 hidden md:inline">
-                {engine.production_model} v{engine.model_version}
+                patientTriage v1.0.0-prototype
               </span>
             )}
           </div>
@@ -104,7 +104,7 @@ export function Layout() {
         <footer className="h-10 bg-amber-50 border-t border-amber-200 flex items-center justify-center px-4">
           <p className="text-xs text-amber-700 text-center">
             PROTOTYPE — NOT VALIDATED FOR CLINICAL USE | 100% Synthetic Data |
-            Model: XGBoost v{engine?.model_version || '...'} |
+            Model: patientTriage v1.0.0-prototype |
             Jurisdiction: {engine?.jurisdiction || 'India DPDP Act 2023'}
           </p>
         </footer>
