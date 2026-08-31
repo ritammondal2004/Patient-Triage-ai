@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
     branches:
-      - main
+      - main  
 
 permissions:
   id-token: write # for AWS OIDC authentication
@@ -31,9 +31,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
-      - name: Run Pytest
+      - name: Run Pytest 
+        env:
+          DATABASE_URL: sqlite:///./ci_test.db
         run: pytest
-
+         
   frontend-build:
     name: Frontend CI
     runs-on: ubuntu-latest

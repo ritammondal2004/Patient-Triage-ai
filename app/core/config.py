@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Engine defaults
     safety_mode: str = "conservative"
 
-    # Default ED capacity — used to seed the demo hospital and the simulation.
+
     default_hospital_name: str = "Demo General Hospital"
     default_doctors: int = 4
     default_beds: int = 12
