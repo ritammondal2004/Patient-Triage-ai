@@ -13,7 +13,7 @@
 |------|------|----------|--------|---------|
 | **Ritam Mondal** | Team Leader | [Linkedin](https://www.linkedin.com/in/ritam-mondal-86a369287/) | [Github](https://github.com/ritammondal2004) | [Portfolio](https://ritammondal.vercel.app/) |
 | **Ushasee Roy** | Team Member |  [Linkedin](https://www.linkedin.com/in/ushasee-roy-5a9a82273/) | [Github](https://github.com/Ushasee04) | |
-| **Nilambar Mondal** | Team Member |  [Linkedin]() | [Github](https://github.com/NILAMBARMANDAL) | | 
+| **Nilambar Mandal** | Team Member |  [Linkedin]() | [Github](https://github.com/NILAMBARMANDAL) | | 
 
 ---
 
