@@ -72,6 +72,7 @@ The operational workflow follows a closed-loop decision process rather than trea
 | **HTTPS / Edge Proxy** | ![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white) |
 | **Testing** | ![Pytest](https://img.shields.io/badge/Pytest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white) |
 | **Version Control** | ![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white) ![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white) |
+| **CI/CD** | ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white) |
 
 ---
 
@@ -128,7 +129,7 @@ Patient Intake
 Feature Engineering
       ↓
 ML Risk Engine
-      ↓
+      ↓  
 Safety + Uncertainty Layer
       ↓
 Priority + Confidence
@@ -141,19 +142,16 @@ Clinician Review / Override
       ↓
 Audit Trail
 
-                    ↘
-                 ED Simulation
+              ↘
+           ED Simulation
+```
 
 
-################
-
-
+---
 
 ## Patient_Triage.AI
 ### Our repo structure
 
-
-```
 ```
 PatientTriage.ai/
 │
@@ -344,61 +342,87 @@ http://localhost:5173
 
 # 🚀 Production Deployment — AWS ECS
 
-## Project
-PatientTriage.ai API
 
-```
-## AWS
-- Region: `eu-north-1`
-- ECS Cluster: `patienttriage-prod`
-- ECS Service: `patienttriage-api-service-v7gmlenl`
-- ECR Repository: `patienttriage-api`
-```
-```
-## Deploy after backend/Dockerfile changes
+## Automated Deployment - *PatientTriage.ai API*
 
-```powershell
-cd "PatientTriageAI\"
+Backend deployment is handled automatically through GitHub Actions.
 
-# Get ECR URI
-$ECR_URI = aws ecr describe-repositories `
-  --repository-names patienttriage-api `
-  --region eu-north-1 `
-  --query "repositories[0].repositoryUri" `
-  --output text
+When changes are pushed to the `main` branch:
 
-```
+1. Backend CI runs the Python test suite using `pytest`.
+2. Frontend CI validates the frontend build.
+3. Docker CI validates the backend Docker image build.
+4. The CD workflow authenticates to AWS using GitHub OIDC.
+5. The backend Docker image is built and pushed to Amazon ECR.
+6. Amazon ECS/Fargate is instructed to start a new deployment using the latest image.
+              
+No manual `docker build`, `docker push`, or `aws ecs update-service` commands are required for normal backend deployments.
 
-### Login
-```
-aws ecr get-login-password --region eu-north-1 |
-  docker login --username AWS --password-stdin $ECR_URI
-```
+## 🔄 CI/CD Pipeline
 
-### Build
-```
-docker build -t patienttriage-api .
-```
+PatientTriage.ai uses GitHub Actions to automate testing, validation, containerization, and backend deployment.
 
-### Tag
-```
-docker tag patienttriage-api:latest "$ECR_URI:latest"
-```
+### Continuous Integration
 
-### Push
-```
-docker push "$ECR_URI:latest" 
-```
+The CI workflows automatically validate changes before deployment.
 
-### Deploy new image
-```
-aws ecs update-service `
-  --cluster patienttriage-prod `
-  --service patienttriage-api-service-v7gmlenl `
-  --force-new-deployment `
-  --region eu-north-1 
+- **Backend CI:** Runs the Python test suite using `pytest`.
+- **Frontend CI:** Builds the React/Vite frontend and validates the TypeScript application.
+- **Docker CI:** Builds the backend Docker image to detect containerization issues before deployment.
 
+These checks help prevent broken backend, frontend, or Docker changes from reaching production.
+
+### Continuous Deployment
+
+Changes pushed to the `main` branch can trigger the backend deployment workflow after the required CI checks pass.
+
+The backend CD pipeline performs the following steps:
+
+```text
+GitHub Push
+     │
+     ▼
+Backend CI ──────► pytest
+     │
+     ▼
+Frontend CI ─────► frontend build
+     │
+     ▼
+Docker CI ───────► Docker build validation
+     │
+     ▼
+GitHub Actions CD
+     │
+     ▼
+AWS OIDC Authentication
+     │
+     ▼
+Amazon ECR
+     │
+     ▼
+Docker Image Push
+     │
+     ▼
+Amazon ECS / Fargate
+     │
+     ▼
+New Backend Deployment
 ```
+---
+### Deployment Flow
+
+![PatientTriage.ai Deployment flow](diagrams/Deployment_flow.png)
+
+---
+
+### Deployment Secrets
+
+The CI/CD workflow uses GitHub Actions repository secrets for deployment configuration.
+
+- `AWS_OIDC_ROLE_ARN` — ARN of the IAM role assumed by GitHub Actions through OIDC.
+
+No long-lived AWS access keys are stored in the repository.
+
 
 ---
 
@@ -688,17 +712,6 @@ Final Triage Recommendation
 
 ----
   
-
-## CI/CD Pipeline
-
-The project utilizes GitHub Actions for continuous integration and deployment.
-
-- **Continuous Integration (CI):** Runs on all Pull Requests and pushes to \main\. It automatically validates the Python backend using pytest, checks the frontend TypeScript/Vite build, and attempts a dry-run Docker build to prevent broken code from being merged.
-- **Continuous Deployment (CD):** Merges to \main\ that pass CI automatically trigger the CD workflow.
-- **Backend Deployment:** GitHub Actions securely authenticates to AWS using OIDC (OpenID Connect), bypassing the need for hard-coded AWS credentials. The latest Docker image is pushed to ECR and a new ECS/Fargate deployment is forced.
-- **Frontend Deployment:** Vercel automatically deploys the frontend upon a successful \main\ push via its native Git integration.
-
----
 
 ## 🔮 Future Roadmap
 
