@@ -34,7 +34,7 @@ coverage.xml
 
 # Local environment and secrets
 .env
-.env.*
+!.env.example
 *.pem
 *.key
 *.crt
